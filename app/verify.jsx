@@ -5,19 +5,21 @@ import {
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  Image  // ✅ Import Image component
+  Image  
 } from "react-native";
+import { useRouter } from "expo-router";  
 import ExampleImage from "@/assets/images/example1.png";
 
 export default function VerifyScreen() {
   const [otp, setOtp] = useState("");
+  const router = useRouter();  
 
   return (
     <View style={styles.container}>
 
-    <View style={styles.illustrationContainer}>
-      <Image source={ExampleImage} style={styles.illustration} />
-    </View>
+      <View style={styles.illustrationContainer}>
+        <Image source={ExampleImage} style={styles.illustration} />
+      </View>
       
       <View style={styles.verificationContainer}>
         <Text style={styles.verificationTitle}>Verification</Text>
@@ -33,7 +35,11 @@ export default function VerifyScreen() {
           onChangeText={setOtp}
         />
 
-        <TouchableOpacity style={styles.verifyButton}>
+        
+        <TouchableOpacity 
+          style={styles.verifyButton} 
+          onPress={() => router.push("/mainpage")} 
+        >
           <Text style={styles.verifyButtonText}>Verify</Text>
         </TouchableOpacity>
 
@@ -93,6 +99,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     marginBottom: 20,
+    marginTop:15,
   },
   verifyButton: {
     backgroundColor: "#A1C6EA",
@@ -100,6 +107,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 10,
     alignItems: "center",
+    marginTop:1,
   },
   verifyButtonText: {
     color: "#000",
@@ -113,4 +121,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-
