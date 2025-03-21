@@ -16,7 +16,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Mood',
+          title: 'Main',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
@@ -24,16 +24,15 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />
+          
         }}
       />
       <Tabs.Screen
         name="calls"
         options={{
           title: 'Calls',
-          tabBarIcon: ({ color, size }) => <Phone size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Phone size={size} color={color} />
         }}
       />
       <Tabs.Screen
