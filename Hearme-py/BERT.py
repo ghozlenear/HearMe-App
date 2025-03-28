@@ -112,7 +112,7 @@ trainer = Trainer(
     eval_dataset=val_dataset,
 )
 
-#  Train the Model 🚀
+#  Train the Model 
 trainer.train()
 
 #  Save the fine-tuned model
