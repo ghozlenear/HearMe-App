@@ -116,7 +116,7 @@ trainer = Trainer(
 trainer.train()
 
 #  Save the fine-tuned model
-model.save_pretrained("./arabert_finetuned")
-tokenizer.save_pretrained("./arabert_finetuned")
+model.save_pretrained("../arabert_finetuned")
+tokenizer.save_pretrained("../arabert_finetuned")
 
 print(" Fine-tuned model saved successfully!")
