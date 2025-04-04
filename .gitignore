@@ -1,6 +1,6 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-Hearme-backend\Hearme-py\arabert_finetuned
+Hearme-backend/Hearme-py/arabert_finetuned/
 
 # dependencies
 node_modules/
