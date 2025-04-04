@@ -13,7 +13,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Dataset
-file_path = r"C:\Users\RALVA\.spyder-py3\allatt.csv"
+file_path = r"C:\Users\RALVA\Documents\startup\Hearme-backend\Hearme-py\user_data\allatt.csv"
 df = pd.read_csv(file_path)
 
 # Define symptom columns
@@ -91,7 +91,7 @@ train_dataset = DepressionDataset(train_encodings, train_labels)
 val_dataset = DepressionDataset(val_encodings, val_labels)
 
 # Define save path
-save_path = r"C:\Users\RALVA\Documents\arabert_finetuned"
+save_path = r"C:\Users\RALVA\Documents\startup\Hearme-backend\Hearme-py\arabert_finetuned"
 
 # Ensure directory exists
 os.makedirs(save_path, exist_ok=True)

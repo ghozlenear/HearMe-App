@@ -14,17 +14,16 @@ import {
   Platform,
 } from 'react-native';
 import { Send, ArrowLeft, Phone, X, CreditCard } from 'lucide-react-native';
-import api, { testApiConnection } from '../../constants/api';
+import api from '../../constants/api';
 
 const { width } = Dimensions.get('window');
 
-// ChatMessage component
+// ChatMessage component (unchanged)
 const ChatMessage = ({ message, isUser }) => (
-  <View
-    style={[
-      styles.messageContainer,
-      isUser ? styles.userMessage : styles.botMessage,
-    ]}>
+  <View style={[
+    styles.messageContainer,
+    isUser ? styles.userMessage : styles.botMessage,
+  ]}>
     <Text style={[styles.messageText, isUser && styles.userMessageText]}>
       {message}
     </Text>
@@ -32,80 +31,84 @@ const ChatMessage = ({ message, isUser }) => (
 );
 
 export default function ChatBot() {
+  // Chat state
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([
-    {
-      text: "مرحبًا، كيف حالك اليوم؟",
-      isUser: false,
-    },
+    { text: "مرحبًا، كيف حالك اليوم؟", isUser: false }
   ]);
+  
+  // Payment modals state
   const [showSubscription, setShowSubscription] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
-
-  // Credit card form state
   const [cardName, setCardName] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [cvc, setCvc] = useState('');
 
-  // Animation values
+  // Animations
   const subscriptionAnimation = useRef(new Animated.Value(0)).current;
   const paymentAnimation = useRef(new Animated.Value(0)).current;
   const messageAnimation = useRef(new Animated.Value(0)).current;
 
-  // Test API connection on component mount
-  useEffect(() => {
-    testApiConnection();
-  }, []);
-
-  // Handle sending a message
+  // Handle sending messages with depression detection
   const handleSend = async () => {
-    if (message.trim()) {
-      // Animate new message
-      messageAnimation.setValue(50);
-      Animated.spring(messageAnimation, {
-        toValue: 0,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      }).start();
+    if (!message.trim()) return;
 
-      // Add user's message to the chat
-      setMessages((prev) => [...prev, { text: message, isUser: true }]);
-      setMessage('');
+    // Animate message send
+    messageAnimation.setValue(50);
+    Animated.spring(messageAnimation, {
+      toValue: 0,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
 
-      try {
-        // Send the message to the API
-        const response = await api.post("/chat", { message });
+    // Add user message immediately
+    const userMessage = { text: message, isUser: true };
+    setMessages(prev => [...prev, userMessage]);
+    setMessage('');
 
-        // Simulate AI response after a short delay
-        setTimeout(() => {
-          messageAnimation.setValue(50);
-          Animated.spring(messageAnimation, {
-            toValue: 0,
-            friction: 8,
-            tension: 40,
-            useNativeDriver: true,
-          }).start();
+    try {
+      // 1. Get depression analysis
+      const predictionRes = await api.post('/predict', { text: message });
+      const { prediction, symptoms } = predictionRes.data;
 
-          // Add AI's response to the chat (in Arabic)
-          setMessages((prev) => [...prev, { 
-            text: response.data.response, // Ensure the API responds in Arabic
-            isUser: false 
-          }]);
-        }, 1000);
-      } catch (error) {
-        console.error("Error sending message:", error);
-        // Handle error (e.g., show an error message to the user in Arabic)
-        setMessages((prev) => [...prev, { 
-          text: "عذرًا، حدث خطأ. يرجى المحاولة مرة أخرى.", 
-          isUser: false 
+      // 2. Store conversation data
+      await api.post('/log_conversation', {
+        user_id: `user_${Date.now()}`,
+        message,
+        prediction,
+        symptoms
+      });
+
+      // 3. Add contextual response
+      setTimeout(() => {
+        messageAnimation.setValue(50);
+        Animated.spring(messageAnimation, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }).start();
+
+        setMessages(prev => [...prev, {
+          text: prediction === "Depressed" ?
+            "يبدو أنك قد تحتاج إلى دعم نفسي. هل تريد التحدث مع معالج متخصص؟" :
+            "أنا سعيد لأنك بخير! هل لديك أي استفسارات أخرى؟",
+          isUser: false
         }]);
-      }
+      }, 800);
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, {
+        text: "عذرًا، حدث خطأ تقني. يرجى المحاولة مرة أخرى",
+        isUser: false
+      }]);
     }
   };
 
-  // Handle calling a therapist
+  // Payment handlers (unchanged)
   const handleCallTherapist = () => {
     setShowSubscription(true);
     Animated.timing(subscriptionAnimation, {
@@ -115,9 +118,7 @@ export default function ChatBot() {
     }).start();
   };
 
-  // Handle subscription selection
   const handleSubscriptionSelect = () => {
-    // Animate subscription modal out
     Animated.timing(subscriptionAnimation, {
       toValue: 0,
       duration: 200,
@@ -125,7 +126,6 @@ export default function ChatBot() {
     }).start(() => {
       setShowSubscription(false);
       setShowPayment(true);
-      // Animate payment modal in
       Animated.timing(paymentAnimation, {
         toValue: 1,
         duration: 300,
@@ -134,83 +134,66 @@ export default function ChatBot() {
     });
   };
 
-  // Handle payment completion
   const handlePaymentComplete = () => {
-    // Animate payment modal out
     Animated.timing(paymentAnimation, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
       setShowPayment(false);
-      // Here you would typically handle the actual payment processing
-      // and then connect to a real therapist
+      // Add actual payment processing here
     });
   };
 
-  // Close subscription modal
+  // Helper functions (unchanged)
   const closeSubscriptionModal = () => {
     Animated.timing(subscriptionAnimation, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
-    }).start(() => {
-      setShowSubscription(false);
-    });
+    }).start(() => setShowSubscription(false));
   };
 
-  // Close payment modal
   const closePaymentModal = () => {
     Animated.timing(paymentAnimation, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
-    }).start(() => {
-      setShowPayment(false);
-    });
+    }).start(() => setShowPayment(false));
   };
 
-  // Format card number
   const formatCardNumber = (text) => {
     const cleaned = text.replace(/\D/g, '');
     const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
-    return formatted.substring(0, 19); // Limit to 16 digits + 3 spaces
+    return formatted.substring(0, 19);
   };
 
-  // Format expiry date
   const formatExpiryDate = (text) => {
     const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length > 2) {
-      return `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}`;
-    }
-    return cleaned;
+    return cleaned.length > 2 ? 
+      `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}` : cleaned;
   };
 
-  // Animation interpolations
+  // Animation interpolations (unchanged)
   const subscriptionTranslateY = subscriptionAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [300, 0],
+    inputRange: [0, 1], outputRange: [300, 0]
   });
-
   const subscriptionOpacity = subscriptionAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
+    inputRange: [0, 1], outputRange: [0, 1]
   });
-
   const paymentTranslateY = paymentAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [300, 0],
+    inputRange: [0, 1], outputRange: [300, 0]
   });
-
   const paymentOpacity = paymentAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
+    inputRange: [0, 1], outputRange: [0, 1]
   });
 
   return (
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity>
           <ArrowLeft size={24} color="#1f2937" />
@@ -230,27 +213,38 @@ export default function ChatBot() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.messagesContainer}>
+      {/* Messages */}
+      <ScrollView 
+        style={styles.messagesContainer}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {messages.map((msg, index) => (
           <Animated.View 
-            key={index} 
-            style={[
-              index === messages.length - 1 ? { transform: [{ translateY: messageAnimation }] } : null
-            ]}>
+            key={index}
+            style={index === messages.length - 1 ? { 
+              transform: [{ translateY: messageAnimation }] 
+            } : null}
+          >
             <ChatMessage message={msg.text} isUser={msg.isUser} />
           </Animated.View>
         ))}
       </ScrollView>
 
+      {/* Input */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
           value={message}
           onChangeText={setMessage}
           placeholder="ابدأ المحادثة..."
+          placeholderTextColor="#9ca3af"
           multiline
         />
-        <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
+        <TouchableOpacity 
+          style={styles.sendButton} 
+          onPress={handleSend}
+          disabled={!message.trim()}
+        >
           <Send size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -258,21 +252,22 @@ export default function ChatBot() {
       {/* Subscription Modal */}
       <Modal
         visible={showSubscription}
-        transparent={true}
+        transparent
         animationType="none"
-        onRequestClose={closeSubscriptionModal}>
+        onRequestClose={closeSubscriptionModal}
+      >
         <View style={styles.modalOverlay}>
-          <Animated.View 
-            style={[
-              styles.modalContent,
-              { 
-                transform: [{ translateY: subscriptionTranslateY }],
-                opacity: subscriptionOpacity
-              }
-            ]}>
+          <Animated.View style={[
+            styles.modalContent,
+            { 
+              transform: [{ translateY: subscriptionTranslateY }],
+              opacity: subscriptionOpacity
+            }
+          ]}>
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={closeSubscriptionModal}>
+              onPress={closeSubscriptionModal}
+            >
               <X size={24} color="#1f2937" />
             </TouchableOpacity>
             
@@ -281,14 +276,16 @@ export default function ChatBot() {
             
             <TouchableOpacity 
               style={styles.subscriptionOption}
-              onPress={handleSubscriptionSelect}>
+              onPress={handleSubscriptionSelect}
+            >
               <Text style={styles.subscriptionPrice}>500 دج يوميًا</Text>
               <Text style={styles.subscriptionDesc}>لجلسات فردية.</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.subscriptionOption}
-              onPress={handleSubscriptionSelect}>
+              onPress={handleSubscriptionSelect}
+            >
               <Text style={styles.subscriptionPrice}>1500 دج شهريًا</Text>
               <Text style={styles.subscriptionDesc}>لدعم مستمر.</Text>
             </TouchableOpacity>
@@ -299,21 +296,22 @@ export default function ChatBot() {
       {/* Payment Modal */}
       <Modal
         visible={showPayment}
-        transparent={true}
+        transparent
         animationType="none"
-        onRequestClose={closePaymentModal}>
+        onRequestClose={closePaymentModal}
+      >
         <View style={styles.modalOverlay}>
-          <Animated.View 
-            style={[
-              styles.modalContent,
-              { 
-                transform: [{ translateY: paymentTranslateY }],
-                opacity: paymentOpacity
-              }
-            ]}>
+          <Animated.View style={[
+            styles.modalContent,
+            { 
+              transform: [{ translateY: paymentTranslateY }],
+              opacity: paymentOpacity
+            }
+          ]}>
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={closePaymentModal}>
+              onPress={closePaymentModal}
+            >
               <X size={24} color="#1f2937" />
             </TouchableOpacity>
             
@@ -388,13 +386,15 @@ export default function ChatBot() {
                       useNativeDriver: true,
                     }).start();
                   }, 200);
-                }}>
+                }}
+              >
                 <Text style={styles.backButtonText}>رجوع</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.nextButton}
-                onPress={handlePaymentComplete}>
+                onPress={handlePaymentComplete}
+              >
                 <Text style={styles.nextButtonText}>التالي</Text>
               </TouchableOpacity>
             </View>
@@ -405,7 +405,7 @@ export default function ChatBot() {
   );
 }
 
-// Styles
+// Styles (unchanged)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
