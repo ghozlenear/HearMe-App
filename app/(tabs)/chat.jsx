@@ -90,7 +90,6 @@ export default function ChatBot() {
           tension: 40,
           useNativeDriver: true,
         }).start();
-
         
 
         setMessages(prev => [...prev, {
