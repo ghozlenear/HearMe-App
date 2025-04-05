@@ -57,6 +57,7 @@ def predict():
     try:
         data = request.json
         text = data.get("text", "").strip()
+        user_id = data.get("user_id", "anonymous")  # fallback if no user_id
 
         if not text:
             return jsonify({"error": "Empty input text"}), 400
@@ -76,6 +77,25 @@ def predict():
         
         # Detect symptoms
         symptoms = detect_symptoms(text)
+
+        # ✅ Save to CSV
+        ensure_data_directory()
+        today = datetime.now().strftime("%Y-%m-%d")
+        file_path = f'user_data/conversations/{today}.csv'
+
+        if not os.path.exists(file_path):
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    "timestamp", "user_id", "message", "prediction", *SYMPTOM_KEYWORDS.keys()
+                ])
+
+        with open(file_path, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                datetime.now().isoformat(), user_id, text, prediction_label,
+                *[symptoms.get(symptom, 0) for symptom in SYMPTOM_KEYWORDS.keys()]
+            ])
 
         return jsonify({
             "prediction": prediction_label,
@@ -128,6 +148,41 @@ def log_conversation():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Basic system status"""
+    return jsonify({
+        "status": "healthy",
+        "model": "arabert",
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/deep_health', methods=['GET'])
+def deep_health_check():
+    """Verify all critical components"""
+    try:
+        # Test model prediction
+        test_text = "اختبار النظام"
+        inputs = tokenizer(test_text, return_tensors="pt").to(device)
+        model(**inputs)  # Test inference
+
+        # Test storage
+        test_file = os.path.join('user_data', 'healthcheck.tmp')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write("نظام يعمل\n")
+        os.remove(test_file)
+
+        return jsonify({
+            "status": "healthy",
+            "components": ["model", "storage"],
+            "arabic_support": True
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 500
 
 if __name__ == "__main__":
     # Create data directory when starting the app

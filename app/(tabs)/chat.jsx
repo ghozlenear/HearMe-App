@@ -91,6 +91,8 @@ export default function ChatBot() {
           useNativeDriver: true,
         }).start();
 
+        
+
         setMessages(prev => [...prev, {
           text: prediction === "Depressed" ?
             "يبدو أنك قد تحتاج إلى دعم نفسي. هل تريد التحدث مع معالج متخصص؟" :
@@ -141,7 +143,7 @@ export default function ChatBot() {
       useNativeDriver: true,
     }).start(() => {
       setShowPayment(false);
-      // Add actual payment processing here
+      // the actual payment processing here
     });
   };
 
