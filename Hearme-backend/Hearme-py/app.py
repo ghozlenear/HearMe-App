@@ -78,7 +78,7 @@ def predict():
         # Detect symptoms
         symptoms = detect_symptoms(text)
 
-        # ✅ Save to CSV
+        # Save to CSV
         ensure_data_directory()
         today = datetime.now().strftime("%Y-%m-%d")
         file_path = f'user_data/conversations/{today}.csv'
