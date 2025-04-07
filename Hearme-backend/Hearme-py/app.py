@@ -65,7 +65,7 @@ def predict():
         # Tokenize input
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
         inputs = {key: val.to(device) for key, val in inputs.items()}
-        
+                                 
           # Detect symptoms
         symptoms = detect_symptoms(text)
 
@@ -77,7 +77,7 @@ def predict():
         probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
         prediction = torch.argmax(probabilities, dim=-1).item()
         prediction_label = "Depressed" if prediction == 1 else "Not Depressed"
-
+ 
         
 
         if prediction_label == "Depressed" and sum(symptoms.values()) == 0:
