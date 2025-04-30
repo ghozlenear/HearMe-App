@@ -22,7 +22,7 @@ const { width } = Dimensions.get('window');
 const ChatMessage = ({ message, isUser }) => (
   <View style={[
     styles.messageContainer,
-    isUser ? styles.userMessage : styles.botMessage,
+    isUser ? styles.userMessages : styles.botMessage,
   ]}>
     <Text style={[styles.messageText, isUser && styles.userMessageText]}>
       {message}
@@ -32,10 +32,12 @@ const ChatMessage = ({ message, isUser }) => (
 
 export default function ChatBot() {
   // Chat state
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { text: "مرحبًا، كيف حالك اليوم؟", isUser: false }
-  ]);
+const [messages, setMessages] = useState([
+  { text: "مرحبًا، أنا مساعدك النفسي. كيف يمكنني مساعدتك اليوم؟", isUser: false }
+]);
+const [inputText, setInputText] = useState('');
+// Add this new state variable
+const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   
   // Payment modals state
   const [showSubscription, setShowSubscription] = useState(false);
@@ -50,56 +52,37 @@ export default function ChatBot() {
   const paymentAnimation = useRef(new Animated.Value(0)).current;
   const messageAnimation = useRef(new Animated.Value(0)).current;
 
-  // Handle sending messages with depression detection
+  
+
+  // Message input
   const handleSend = async () => {
-    if (!message.trim()) return;
-
-    // Animate message send
-    messageAnimation.setValue(50);
-    Animated.spring(messageAnimation, {
-      toValue: 0,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-
-    // Add user message immediately
-    const userMessage = { text: message, isUser: true };
+    if (!inputText.trim()) return;
+  
+    const userMessage = { text: inputText, isUser: true };
     setMessages(prev => [...prev, userMessage]);
-    setMessage('');
-
+    setInputText('');
+  
     try {
-      // 1. Get depression analysis
-      const predictionRes = await api.post('/predict', { text: message });
-      const { prediction, symptoms } = predictionRes.data;
-
-      // 2. Store conversation data
-      await api.post('/log_conversation', {
-        user_id: `user_${Date.now()}`,
-        message,
-        prediction,
-        symptoms
+      const predictionRes = await api.post('/predict', { 
+        text: inputText,
+        user_id: conversationId
       });
-
-      // 3. Add contextual response
+      
+      const { prediction } = predictionRes.data;
+  
+      const llmRes = await api.post('/generate-arabic-response', {
+        user_id: conversationId,
+        message: inputText,
+        prediction: prediction
+      });
+  
       setTimeout(() => {
-        messageAnimation.setValue(50);
-        Animated.spring(messageAnimation, {
-          toValue: 0,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }).start();
-        
-
         setMessages(prev => [...prev, {
-          text: prediction === "Depressed" ?
-            "يبدو أنك قد تحتاج إلى دعم نفسي. هل تريد التحدث مع معالج متخصص؟" :
-            "أنا سعيد لأنك بخير! هل لديك أي استفسارات أخرى؟",
+          text: llmRes.data.response,
           isUser: false
         }]);
       }, 800);
-
+  
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(prev => [...prev, {
@@ -108,8 +91,8 @@ export default function ChatBot() {
       }]);
     }
   };
-
-  // Payment handlers (unchanged)
+  
+    // Payment handlers (unchanged)
   const handleCallTherapist = () => {
     setShowSubscription(true);
     Animated.timing(subscriptionAnimation, {
@@ -216,38 +199,39 @@ export default function ChatBot() {
 
       {/* Messages */}
       <ScrollView 
-        style={styles.messagesContainer}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        {messages.map((msg, index) => (
-          <Animated.View 
-            key={index}
-            style={index === messages.length - 1 ? { 
-              transform: [{ translateY: messageAnimation }] 
-            } : null}
-          >
-            <ChatMessage message={msg.text} isUser={msg.isUser} />
-          </Animated.View>
-        ))}
-      </ScrollView>
+  style={styles.messagesContainer}
+  contentContainerStyle={{ paddingBottom: 20 }}
+  >
+  {messages.map((msg, index) => (
+    <Animated.View 
+      key={index}
+      style={index === messages.length - 1 ? { 
+        transform: [{ translateY: messageAnimation }] 
+      } : null}
+    >
+      <ChatMessage message={msg.text} isUser={msg.isUser} />
+    </Animated.View>
+  ))}
+</ScrollView>
 
       {/* Input */}
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={message}
-          onChangeText={setMessage}
-          placeholder="ابدأ المحادثة..."
-          placeholderTextColor="#9ca3af"
-          multiline
-        />
-        <TouchableOpacity 
-          style={styles.sendButton} 
-          onPress={handleSend}
-          disabled={!message.trim()}
-        >
-          <Send size={24} color="#fff" />
-        </TouchableOpacity>
+      <TextInput
+  style={styles.input}
+  value={inputText}
+  onChangeText={setInputText}
+  placeholder="ابدأ المحادثة..."
+  placeholderTextColor="#9ca3af"
+  multiline
+/>
+<TouchableOpacity 
+  style={styles.sendButton} 
+  onPress={handleSend}
+  disabled={!inputText.trim()}
+>
+  <Send size={24} color="#fff" />
+</TouchableOpacity>
+
       </View>
 
       {/* Subscription Modal */}
@@ -451,7 +435,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 16,
   },
-  userMessage: {
+  userMessages: {
     backgroundColor: '#A1C6EA',
     alignSelf: 'flex-end',
     borderTopRightRadius: 4,
