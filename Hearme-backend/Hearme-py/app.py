@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from inference import DepressionClassifier
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import os
 import csv
 from datetime import datetime
@@ -157,6 +160,9 @@ model.eval()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+# Initialize Depression Classifier
+classifier = DepressionClassifier(MODEL_PATH)
+
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={
@@ -164,6 +170,13 @@ CORS(app, resources={
     r"/log_conversation": {"origins": "*"},
     r"/generate-arabic-response": {"origins": "*"}
 })
+
+# Initialize Limiter IMMEDIATELY after app creation
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,  # Limits by client IP
+    default_limits=["200 per day", "50 per hour"]  # Global fallback limits
+)
 
 # Enhanced symptom detection configuration
 SYMPTOM_KEYWORDS = {
@@ -221,11 +234,50 @@ def detect_symptoms(text):
     
     return symptoms
 
+def generate_chatbot_reply(prediction, symptoms):
+    """Generate appropriate Arabic response based on prediction and symptoms"""
+    if prediction == "Depressed":
+        detected_symptoms = [symptom for symptom, present in symptoms.items() if present]
+        
+        if 'أفكار انتحارية' in detected_symptoms:
+            return {
+                "immediate_response": "أنا قلق بشأن ما ذكرته من أفكار انتحارية. هذه علامة مهمة تحتاج إلى دعم فوري.",
+                "follow_up_question": "هل يمكنك مشاركة المزيد عن هذه الأفكار؟",
+                "suggested_action": "يوصى بالاتصال بخط المساعدة النفسية المحلي أو التوجه إلى أقرب مركز صحة نفسية"
+            }
+        
+        symptom_responses = {
+            'الشعور بعدم القيمة': "أنا أسمع أنك تشعر بعدم القيمة.",
+            'ضعف التركيز': "يبدو أنك تواجه صعوبة في التركيز.",
+            'طاقة منخفضة': "أرى أن طاقتك منخفضة مؤخرًا.",
+            'مشاكل النوم': "لاحظت أنك تعاني من مشاكل في النوم.",
+            'مشاكل في الشهية': "يبدو أن شهيتك قد تغيرت."
+        }
+        
+        response_parts = ["أنا ألاحظ بعض العلامات التي قد تحتاج إلى انتباه:"]
+        for symptom in detected_symptoms:
+            if symptom in symptom_responses:
+                response_parts.append(symptom_responses[symptom])
+        
+        return {
+            "immediate_response": "\n".join(response_parts),
+            "follow_up_question": "كيف تؤثر هذه المشاعر على حياتك اليومية؟",
+            "suggested_action": "قد يكون من المفيد التحدث مع أخصائي صحة نفسية"
+        }
+    else:
+        return {
+            "immediate_response": "شكرًا لمشاركة مشاعرك.",
+            "follow_up_question": "هل هناك أي شيء آخر تريد التحدث عنه؟",
+            "suggested_action": "استمر في مراقبة مشاعرك ولا تتردد في طلب المساعدة إذا احتجت"
+        }
+    
+
 def ensure_data_directory():
     """Create data directory if it doesn't exist"""
     os.makedirs('user_data/conversations', exist_ok=True)
 
 @app.route("/predict", methods=["POST"])
+@limiter.limit("10 per minute") 
 def predict():
     try:
         data = request.json
@@ -235,32 +287,24 @@ def predict():
         if not text:
             return jsonify({"error": "Empty input text"}), 400
 
-        # Enhanced symptom detection
+        # Get prediction from classifier
+        predicted_class, probabilities = classifier.predict(text)
+        prediction_label = "Depressed" if predicted_class == 1 else "Not Depressed"
+
+        # Detect symptoms (using your existing function)
         symptoms = detect_symptoms(text)
         symptom_count = sum(symptoms.values())
 
-        # Tokenize input
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        inputs = {key: val.to(device) for key, val in inputs.items()}
-                                 
-        # Perform inference
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        # Convert to probabilities
-        probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
-        prediction = torch.argmax(probabilities, dim=-1).item()
-        
-        # Final decision logic
-        if symptom_count >= 3:  # If 3+ symptoms detected, consider depressed
+        # Enhanced decision logic
+        if symptom_count >= 3:  # Override if multiple symptoms present
             prediction_label = "Depressed"
-            probabilities = torch.tensor([[0.2, 0.8]])  # High confidence
-        elif prediction == 1 and symptom_count > 0:  # Model says depressed and some symptoms
-            prediction_label = "Depressed"
-        else:
-            prediction_label = "Not Depressed"
+            probabilities = {"Not Depressed": 0.2, "Depressed": 0.8}
 
-        # Save results
+        # Generate responses (using your existing functions)
+        chatbot_reply = generate_chatbot_reply(prediction_label, symptoms)
+        gpt_response = generate_arabic_response(user_id, text, prediction_label)
+
+        # Save results (your existing logging code)
         ensure_data_directory()
         today = datetime.now().strftime("%Y-%m-%d")
         file_path = f'user_data/conversations/{today}.csv'
@@ -282,12 +326,19 @@ def predict():
 
         return jsonify({
             "prediction": prediction_label,
-            "probabilities": probabilities.tolist(),
-            "symptoms": symptoms
+            "probabilities": probabilities,
+            "symptoms": symptoms,
+            "reply": {
+                "structured": chatbot_reply,
+                "generated": gpt_response
+            }
         })
 
+    except KeyError as e:
+        return jsonify({"error": f"Missing field: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Prediction error: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
     
 @app.route("/generate-arabic-response", methods=["POST"])
 def generate_arabic_response_endpoint():
@@ -338,6 +389,13 @@ def deep_health_check():
             "error": str(e)
         }), 500
 
+@app.errorhandler(429)
+def ratelimit_error(e):
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please try again later."
+    }), 429
+    
 if __name__ == "__main__":
     ensure_data_directory()
     app.run(debug=True)
