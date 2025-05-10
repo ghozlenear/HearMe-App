@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "878261829318",
+    "project_id": "hearme-patient",
+    "storage_bucket": "hearme-patient.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878261829318:android:5bbdba92ac21e5301261c7",
+        "android_client_info": {
+          "package_name": "com.startup.hearme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBv95-g02cMqLLWnQsQel3V5d8y34Q5j7w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

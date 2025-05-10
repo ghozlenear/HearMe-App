@@ -1,6 +1,47 @@
-import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Phone, Heart, CircleUser as UserCircle } from 'lucide-react-native';
+import { Linking } from 'react-native';
+import { useState } from 'react';
+import Geolocation from '@react-native-community/geolocation';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+
+
+
+const [emergencySent, setEmergencySent] = useState(false);
+
+const handleEmergency = async () => {
+  const user = auth().currentUser;
+
+  if (!user) {
+    Alert.alert("User not logged in", "Please log in first.");
+    return;
+  }
+
+  Geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+
+      await firestore().collection('emergencies').add({
+        userId: user.uid,
+        location: {
+          lat: latitude,
+          lng: longitude,
+        },
+        trustedContact: '+213XXXXXXXX', // Later replace with actual selected contact
+        timestamp: firestore.FieldValue.serverTimestamp(),
+      });
+
+      setEmergencySent(true);
+      Alert.alert('🚨 Emergency Sent', 'Your emergency has been reported.');
+    },
+    (error) => {
+      console.error(error);
+      Alert.alert('Location Error', 'Unable to get location.');
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+  );
+};
 
 const emergencyContacts = [
   {
@@ -34,14 +75,28 @@ const familyContacts = [
 
 export default function Calls() {
   const handleCall = (number) => {
-    // In a real app, implement actual calling functionality
-    console.log(`Calling ${number}`);
+    Linking.openURL(`tel:${number}`).catch(err =>
+      Alert.alert('Error', 'Could not initiate call')
+    );
   };
 
+  
   const handleAddContact = (type) => {
-    // In a real app, implement contact addition functionality
-    console.log(`Adding ${type} contact`);
+    Alert.alert(
+      `Add ${type === 'family' ? 'Family Member' : 'Close Friend'}`,
+      `This will open a form to add a ${type === 'family' ? 'family member' : 'close friend'} in the future.`,
+    );
   };
+  
+  //const handleAddContact = (type) => {
+    // In a real app, implement contact addition functionality
+  //  console.log(`Adding ${type} contact`);
+ // };
+ <TouchableOpacity style={styles.emergencyButton} onPress={handleEmergency}>
+  <Text style={styles.emergencyButtonText}>
+    {emergencySent ? 'Emergency Sent' : 'Trigger Emergency'}
+  </Text>
+</TouchableOpacity>
 
   return (
     <ScrollView style={styles.container}>
@@ -185,4 +240,20 @@ const styles = StyleSheet.create({
     padding: 20,
     fontStyle: 'italic',
   },
+
+  emergencyButton: {
+    backgroundColor: '#ef4444',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginVertical: 30,
+  },
+  emergencyButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  
 });
