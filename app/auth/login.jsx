@@ -1,20 +1,41 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
+import auth from '@react-native-firebase/auth';
 
 export default function Login() {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (phoneNumber.length >= 10) {
-      router.push('/auth/verify');
+  const handleLogin = async () => {
+    if (phoneNumber.length < 10) return;
+
+    setLoading(true);
+    try {
+      // Format phone number with country code (adjust as needed)
+      const formattedPhoneNumber = `+91${phoneNumber}`; // Using India as default (+91)
+      
+      const confirmation = await auth().signInWithPhoneNumber(formattedPhoneNumber);
+      
+      // Navigate to verification screen with confirmation object
+      router.push({
+        pathname: '/auth/verify',
+        params: { 
+          verificationId: confirmation.verificationId,
+          phoneNumber: formattedPhoneNumber 
+        }
+      });
+    } catch (error) {
+      Alert.alert('Error', error.message);
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        {/* Image container for custom picture */}
         <Image 
           source={{ uri: 'https://cdn.dribbble.com/userupload/12016465/file/original-722f3d8d0d4c8a4f3ba5c6e7a4b9a8c4.png?resize=1024x768' }}
           style={styles.illustration}
@@ -26,20 +47,26 @@ export default function Login() {
         <Text style={styles.subtitle}>fast access</Text>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="XX-XX-XX-XX-XX"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-          />
+          <View style={styles.phoneInputContainer}>
+            <Text style={styles.countryCode}>+91</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your phone number"
+              value={phoneNumber}
+              onChangeText={(text) => setPhoneNumber(text.replace(/[^0-9]/g, ''))}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              maxLength={10}
+            />
+          </View>
 
           <TouchableOpacity
-            style={[styles.button, phoneNumber.length < 10 && styles.buttonDisabled]}
+            style={[styles.button, (phoneNumber.length < 10 || loading) && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={phoneNumber.length < 10}>
-            <Text style={styles.buttonText}>Accept and continue</Text>
+            disabled={phoneNumber.length < 10 || loading}>
+            <Text style={styles.buttonText}>
+              {loading ? 'Sending OTP...' : 'Accept and continue'}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
@@ -94,13 +121,23 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
-  input: {
+  phoneInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f8fafc',
-    padding: 16,
     borderRadius: 12,
-    fontSize: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+  },
+  countryCode: {
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  input: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
   },
   button: {
     backgroundColor: '#A1C6EA',
