@@ -276,6 +276,8 @@ def ensure_data_directory():
     """Create data directory if it doesn't exist"""
     os.makedirs('user_data/conversations', exist_ok=True)
 
+    
+
 @app.route("/predict", methods=["POST"])
 @limiter.limit("10 per minute") 
 def predict():
@@ -290,6 +292,11 @@ def predict():
         # Get prediction from classifier
         predicted_class, probabilities = classifier.predict(text)
         prediction_label = "Depressed" if predicted_class == 1 else "Not Depressed"
+
+        positive_phrases = ["بخير", "أنا بخير", "تمام", "لا أشعر بالحزن", "سعيد", "مرتاح"]
+        if any(p in text for p in positive_phrases):
+            prediction_label = "Not Depressed"
+            probabilities = [[0.9, 0.1]]
 
         # Detect symptoms (using your existing function)
         symptoms = detect_symptoms(text)

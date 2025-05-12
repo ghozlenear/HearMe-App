@@ -13,7 +13,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load Dataset
-file_path = r"C:\Users\RALVA\Documents\startup\Hearme-backend\Hearme-py\user_data\allatt.csv"
+file_path = r"C:\Users\RALVA\Documents\startup\Hearme-backend\Hearme-py\user_data\2k.csv"
 df = pd.read_csv(file_path)
 
 # Define symptom columns
