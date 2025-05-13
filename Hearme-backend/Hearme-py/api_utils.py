@@ -6,7 +6,7 @@ from functools import lru_cache
 load_dotenv()
 
 class GPT4oClient:
-    """Handles all GPT-4o API communications with caching"""
+
     
     def __init__(self):
         self.base_url = "https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions"
@@ -16,7 +16,7 @@ class GPT4oClient:
             "Content-Type": "application/json"
         }
     
-    @lru_cache(maxsize=100)  # Cache 100 most recent responses
+    @lru_cache(maxsize=100)  
     def generate_response(self, messages, max_tokens=200):
         payload = {
             "messages": messages,

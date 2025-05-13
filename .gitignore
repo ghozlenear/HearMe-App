@@ -2,7 +2,8 @@
 
 Hearme-backend/Hearme-py/arabert_finetuned/
 Hearme-backend/Hearme-py/arabert_finetuned2k/
-Hearme-backend/Hearme-py/user_data/
+Hearme-backend/Hearme-py/user_data/conversations/*
+Hearme-backend/Hearme-py/.env/
 
 # dependencies
 node_modules/

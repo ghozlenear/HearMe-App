@@ -322,7 +322,6 @@ def generate_chatbot_reply(prediction, symptoms):
     
 
 def ensure_data_directory():
-    """Create data directory if it doesn't exist"""
     os.makedirs('user_data/conversations', exist_ok=True)
 
     
@@ -356,11 +355,11 @@ def predict():
             prediction_label = "Depressed"
             probabilities = {"Not Depressed": 0.2, "Depressed": 0.8}
 
-        # Generate responses (using your existing functions)
+        # Generate responses 
         chatbot_reply = generate_chatbot_reply(prediction_label, symptoms)
         gpt_response = generate_arabic_response(user_id, text, prediction_label)
 
-        # Save results (your existing logging code)
+        # Save results 
         ensure_data_directory()
         today = datetime.now().strftime("%Y-%m-%d")
         file_path = f'user_data/conversations/{today}.csv'
