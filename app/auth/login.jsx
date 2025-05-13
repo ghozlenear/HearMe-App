@@ -14,7 +14,6 @@ export default function Login() {
   return (
     <View style={styles.container}>
       <View style={styles.imageContainer}>
-        {/* Image container for custom picture */}
         <Image 
           source={{ uri: 'https://cdn.dribbble.com/userupload/12016465/file/original-722f3d8d0d4c8a4f3ba5c6e7a4b9a8c4.png?resize=1024x768' }}
           style={styles.illustration}

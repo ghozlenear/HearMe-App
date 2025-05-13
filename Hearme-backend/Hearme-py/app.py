@@ -7,6 +7,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
 import csv
+import requests
 from datetime import datetime
 import re
 from collections import defaultdict
@@ -61,7 +62,7 @@ INTERVIEW_PROTOCOL_ARABIC = {
 conversation_states = defaultdict(dict)
 
 def clean_arabic_response(text):
-    """Clean Arabic text response"""
+   
     text = re.sub(r'[^\u0600-\u06FF\u0750-\u077F\s,;?()،؛؟]', '', text)
     replacements = {
         ',': '،',
@@ -75,7 +76,7 @@ def clean_arabic_response(text):
     return text.strip()
 
 def generate_arabic_interview_prompt(user_id, message, prediction):
-    """Generate Arabic interview prompt with cultural context"""
+    
     state = conversation_states[user_id]
     
     if not state:
@@ -112,14 +113,19 @@ def generate_arabic_interview_prompt(user_id, message, prediction):
     5. مراعاة التنبؤ بالاكتئاب: {prediction}
     """
     return prompt, state
-
 def generate_arabic_response(user_id, message, prediction):
-    """Generate Arabic psychological response using gpt_client"""
+    
     try:
         prompt, state = generate_arabic_interview_prompt(user_id, message, prediction)
-        
-        response = gpt_client.generate_response(
-            messages=[
+
+        url = "https://cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com/v1/chat/completions"
+        headers = {
+            "x-rapidapi-key": os.getenv("RAPIDAPI_KEY"),
+            "x-rapidapi-host": "cheapest-gpt-4-turbo-gpt-4-vision-chatgpt-openai-ai-api.p.rapidapi.com",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "messages": [
                 {
                     "role": "system",
                     "content": "أنت أخصائي نفسي عربي تجري مقابلة تشخيصية. استخدم لغة عربية بسيطة وتجنب المصطلحات المعقدة."
@@ -129,11 +135,33 @@ def generate_arabic_response(user_id, message, prediction):
                     "content": prompt
                 }
             ],
-            max_tokens=200
-        )
-        
-        if not response:
-            return "عذرًا، حدث خطأ تقني. هل يمكنك إعادة صياغة سؤالك؟"
+            "model": "gpt-4o",
+            "max_tokens": 200,
+            "temperature": 0.7
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+
+        reply = response.json()["choices"][0]["message"]["content"]
+
+        # Update conversation state
+        state['الإجابات_السابقة'].append(message)
+        state['خطوة_المرحلة'] += 1
+
+        if state['خطوة_المرحلة'] >= INTERVIEW_PROTOCOL_ARABIC['المراحل'][state['المرحلة']]['أقصى_أسئلة']:
+            stages = list(INTERVIEW_PROTOCOL_ARABIC['المراحل'].keys())
+            current_index = stages.index(state['المرحلة'])
+            if current_index < len(stages) - 1:
+                state['المرحلة'] = stages[current_index + 1]
+                state['خطوة_المرحلة'] = 0
+
+        return clean_arabic_response(reply)
+
+    except Exception as e:
+        print(f"Error generating response: {str(e)}")
+        return "عذرًا، حدث خطأ تقني. هل يمكنك إعادة صياغة سؤالك؟"
+
         
         # Update conversation state
         state['الإجابات_السابقة'].append(message)
@@ -196,24 +224,34 @@ SYMPTOM_KEYWORDS = {
     'نبرة صوت رتيبة': ["صوت ممل", "لا تعابير صوتية", "صوت رتيب", "نبرة واحدة"]
 }
 
+
 def detect_symptoms(text):
-    """Advanced Arabic symptom detection with phrase matching"""
+    
     symptoms = {symptom: 0 for symptom in SYMPTOM_KEYWORDS.keys()}
     text = text.lower()
-    
-    # Special cases that need exact phrase matching
+
     symptom_patterns = {
+        'الشعور بالاكتئاب': [
+            r'أشعر بالاكتئاب', r'أشعر بالحزن', r'أنا حزين',
+            r'أشعر بالوحدة', r'أشعر بأنني وحيد', r'أشعر أنني وحيد',
+            r'أشعر بالحزن الشديد', r'كل شيء مظلم', r'لا شيء يفرحني',
+            r'أشعر بأنني محطم', r'أشعر بالكآبة'
+    ],
+
+        'عدم الاهتمام': [
+            r'لا أجد أي معنى', r'لا أهتم', r'فقدت الاهتمام', r'لا يهمني شيء',
+            r'الأشياء لم تعد تهمني'
+        ],
         'الشعور بعدم القيمة': [
-            r'عديم القيمة', r'بلا قيمة', r'لا فائدة', 
-            r'لا اشعر بقيمتي', r'اشعر بعدم القيمة'
+            r'عديم القيمة', r'بلا قيمة', r'لا فائدة', r'لا أشعر بقيمتي',
+            r'أشعر بعدم القيمة'
         ],
         'ضعف التركيز': [
-            r'لا استطيع التركيز', r'ضعف تركيز', r'لا أركز',
+            r'لا أستطيع التركيز', r'ضعف تركيز', r'لا أركز',
             r'تشتت انتباه', r'صعوبة التركيز'
         ],
         'طاقة منخفضة': [
-            r'طاقتي منخفضة', r'لا طاقة', r'اشعر بالتعب',
-            r'إرهاق', r'خمول'
+            r'طاقتي منخفضة', r'لا طاقة', r'أشعر بالتعب', r'إرهاق', r'خمول', r'أنا متعب'
         ],
         'مشاكل النوم': [
             r'مشاكل في النوم', r'أعاني من النوم', r'أرق',
@@ -221,21 +259,32 @@ def detect_symptoms(text):
         ],
         'مشاكل في الشهية': [
             r'مشاكل في الشهية', r'اضطراب الشهية', 
-            r'لا اشتهي الاكل', r'شهيتي تغيرت'
+            r'لا أشتهي الأكل', r'شهيتي تغيرت'
+        ],
+        'أفكار انتحارية': [
+            r'أفكر في الانتحار', r'أتمنى الموت', r'أريد أن أنتهي', r'أفكر أن أنهي حياتي'
+        ],
+        'الانفعال': [
+            r'أنا غاضب', r'أشعر بالعصبية', r'أفقد أعصابي بسهولة'
+        ],
+        'تباطؤ الحركات': [
+            r'أتحرك ببطء', r'لا أستطيع النهوض', r'أشعر بأن جسدي ثقيل'
+        ],
+        'التململ أو البطء': [
+            r'لا أستطيع الجلوس ساكنًا', r'أتحرك كثيرًا بدون سبب'
         ]
+        # Add more patterns for the remaining if needed
     }
 
-    # Check each symptom with its specific patterns
     for symptom, patterns in symptom_patterns.items():
         for pattern in patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 symptoms[symptom] = 1
                 break
-    
-    return symptoms
 
+    return symptoms
 def generate_chatbot_reply(prediction, symptoms):
-    """Generate appropriate Arabic response based on prediction and symptoms"""
+
     if prediction == "Depressed":
         detected_symptoms = [symptom for symptom, present in symptoms.items() if present]
         
