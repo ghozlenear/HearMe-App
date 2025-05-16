@@ -1,55 +1,61 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Alert, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { supabase } from '../lib/supabase'; // Adjust the import path as necessary
-export default function login() {
+import {
+  View,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { supabase } from '../lib/supabase'; 
+
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-const done=false
- const handleAuth = async () => {
-  setLoading(true);
-  try {
-    if (isLogin) {
-      // Login logic
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      
-      // Get the session after successful login
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) throw sessionError;
-      
-      if (sessionData.session) {
-        console.log('User logged in:', sessionData.session.user);
-        // You can redirect or update state here
+  const router = useRouter();
+
+  const handleAuth = async () => {
+    setLoading(true);
+    try {
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (sessionData.session) {
+          console.log('User logged in:', sessionData.session.user);
+          router.replace('/(tabs)/home'); // ✅ Redirect to home
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+        Alert.alert('Success', 'Check your email for confirmation!');
       }
-    } else {
-      // Signup logic
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      
-      if (error) throw error;
-      
-      Alert.alert('Success', 'Check your email for confirmation!');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    Alert.alert('Error', error.message);
-  } finally {
-    setLoading(false);
-  }
-};
-    console.log('done:', done);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -58,7 +64,7 @@ const done=false
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -66,13 +72,13 @@ const done=false
         onChangeText={setPassword}
         secureTextEntry
       />
-      
+
       <Button
         title={loading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
         onPress={handleAuth}
         disabled={loading}
       />
-      
+
       <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
         <Text style={styles.switchText}>
           {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
