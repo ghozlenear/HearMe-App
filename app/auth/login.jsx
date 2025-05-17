@@ -9,11 +9,13 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '../lib/supabase'; 
+import { supabase } from '../lib/supabase'; // adjust path if needed
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [numero, setNumero] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function LoginScreen() {
 
         if (sessionData.session) {
           console.log('User logged in:', sessionData.session.user);
-          router.replace('/(tabs)/home'); // ✅ Redirect to home
+          router.replace('/(tabs)/home');
         }
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -43,7 +45,26 @@ export default function LoginScreen() {
         });
 
         if (error) throw error;
-        Alert.alert('Success', 'Check your email for confirmation!');
+
+        const user = data?.user;
+        if (user?.id) {
+          const { error: insertError } = await supabase
+            .from('patient')
+            .insert([
+              {
+                id: user.id,
+                email,
+                username,
+                numero,
+              },
+            ]);
+
+          if (insertError) {
+            Alert.alert('Database Error', insertError.message);
+          } else {
+            Alert.alert('Success', 'Check your email for confirmation!');
+          }
+        }
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -72,6 +93,24 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         secureTextEntry
       />
+
+      {!isLogin && (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone Number"
+            value={numero}
+            onChangeText={setNumero}
+            keyboardType="phone-pad"
+          />
+        </>
+      )}
 
       <Button
         title={loading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
