@@ -10,6 +10,7 @@ import {
   FlatList,
   Linking,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Phone, Heart, CircleUser as UserCircle, Search } from 'lucide-react-native';
 import * as Contacts from 'expo-contacts';
@@ -57,22 +58,16 @@ export default function Calls() {
       return;
     }
 
-    // Ask for location permission
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Denied', 'Location permission is required to send your live location.');
       return;
     }
 
-    // Get current location
     const location = await Location.getCurrentPositionAsync({});
     const { latitude, longitude } = location.coords;
-
-    // Construct Google Maps link
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
     const message = `Help me heree: ${mapsUrl}`;
-
-    // Open SMS app with prefilled message
     const smsUrl = `sms:${number}?body=${encodeURIComponent(message)}`;
     Linking.openURL(smsUrl);
   };
@@ -194,34 +189,41 @@ export default function Calls() {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.callButton}
-                onPress={() => handleCall(trustedContact)}
-              >
-                <Phone size={24} color="#fff" />
-                <Text style={styles.callButtonText}>Call</Text>
-              </TouchableOpacity>
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, styles.callButton]}
+                  onPress={() => handleCall(trustedContact)}
+                >
+                  <Phone size={24} color="#fff" />
+                  <Text style={styles.buttonText}>Call Now</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.callButton, { marginTop: 10, backgroundColor: '#10b981' }]}
-                onPress={() => sendLocationSMS(trustedContact)}
-              >
-                <Text style={styles.callButtonText}>Send Live Location SMS</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.primaryButton, styles.locationButton]}
+                  onPress={() => sendLocationSMS(trustedContact)}
+                >
+                  <Text style={styles.buttonText}>Send Live Location</Text>
+                </TouchableOpacity>
+              </View>
 
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <View style={styles.secondaryButtonGroup}>
                 <TouchableOpacity
                   onPress={openContactPicker}
-                  style={[styles.manageButton, { backgroundColor: '#facc15' }]}
+                  style={[styles.secondaryButton, styles.updateButton]}
                 >
-                  <Text style={styles.manageButtonText}>Update</Text>
+                  <UserCircle size={20} color="#818CF8" />
+                  <Text style={[styles.secondaryButtonText, { color: '#818CF8' }]}>
+                    Change Contact
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={removeTrustedContact}
-                  style={[styles.manageButton, { backgroundColor: '#ef4444' }]}
+                  style={[styles.secondaryButton, styles.removeButton]}
                 >
-                  <Text style={styles.manageButtonText}>Remove</Text>
+                  <Text style={[styles.secondaryButtonText, { color: '#F87171' }]}>
+                    Remove
+                  </Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -241,18 +243,25 @@ export default function Calls() {
 
       {/* Contact Picker Modal */}
       <Modal visible={modalVisible} animationType="slide">
-        <View style={{ flex: 1, padding: 20 }}>
-          <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 12 }}>
-            Select a Contact
-          </Text>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Select Contact</Text>
+          </View>
 
           <View style={styles.searchContainer}>
-            <Search size={20} color="#6b7280" style={{ marginRight: 8 }} />
+            <Search size={18} color="#666" />
             <TextInput
-              placeholder="Search contacts..."
+              placeholder="Search"
               value={searchQuery}
               onChangeText={handleSearch}
               style={styles.searchInput}
+              placeholderTextColor="#999"
             />
           </View>
 
@@ -261,32 +270,25 @@ export default function Calls() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={{
-                  padding: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: '#ddd',
-                }}
+                style={styles.contactItem}
                 onPress={() => selectContact(item)}
               >
-                <Text style={{ fontSize: 16 }}>{item.name}</Text>
-                <Text style={{ fontSize: 14, color: '#666' }}>
-                  {item.phoneNumbers[0]?.number}
-                </Text>
+                <View style={styles.contactAvatar}>
+                  <Text style={styles.avatarText}>
+                    {item.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.contactInfo}>
+                  <Text style={styles.contactItemName}>{item.name}</Text>
+                  <Text style={styles.contactItemNumber}>
+                    {item.phoneNumbers[0]?.number}
+                  </Text>
+                </View>
               </TouchableOpacity>
             )}
+            contentContainerStyle={styles.contactsList}
+            showsVerticalScrollIndicator={false}
           />
-          <TouchableOpacity
-            onPress={() => setModalVisible(false)}
-            style={{
-              marginTop: 20,
-              backgroundColor: '#ef4444',
-              padding: 14,
-              borderRadius: 8,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Cancel</Text>
-          </TouchableOpacity>
         </View>
       </Modal>
     </ScrollView>
@@ -300,17 +302,26 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#ECEEFE',
+    height: 160,
+    backgroundColor: '#A1C6EA',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   header: {
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECEEFE',
+    marginTop: -60,
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: '#1f2937',
     marginTop: 12,
@@ -320,84 +331,211 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     marginTop: 8,
+    lineHeight: 22,
   },
   section: {
     padding: 20,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#1f2937',
     marginBottom: 16,
+    marginLeft: 4,
   },
   contactCard: {
-    backgroundColor: '#ECEEFE',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   contactInfo: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   contactName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   contactDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#6b7280',
+    lineHeight: 20,
   },
   callButton: {
-    backgroundColor: '#A1C6EA',
+    backgroundColor: '#60A5FA',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
+    padding: 16,
+    borderRadius: 12,
+    gap: 10,
   },
   callButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
   addButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#A1C6EA',
+    borderStyle: 'dashed',
   },
   disclaimer: {
     fontSize: 14,
     color: '#ef4444',
     textAlign: 'center',
-    padding: 20,
+    paddingHorizontal: 40,
+    paddingVertical: 24,
     fontStyle: 'italic',
+    lineHeight: 20,
   },
-  manageButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
+  buttonGroup: {
+    marginTop: 16,
+    gap: 12,
+  },
+  primaryButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 10,
   },
-  manageButtonText: {
+  buttonText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
+  },
+  locationButton: {
+    backgroundColor: '#34D399',
+  },
+  secondaryButtonGroup: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+  },
+  secondaryButton: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  updateButton: {
+    borderColor: '#818CF8',
+  },
+  removeButton: {
+    borderColor: '#F87171',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    backgroundColor: '#A1C6EA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: 12,
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '400',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    gap: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: '#000',
+    fontWeight: '400',
+  },
+  contactsList: {
+    padding: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  contactAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#A1C6EA20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#A1C6EA',
+  },
+  contactInfo: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+    paddingBottom: 12,
+  },
+  contactItemName: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#000',
+    marginBottom: 4,
+  },
+  contactItemNumber: {
+    fontSize: 14,
+    color: '#666',
   },
 });
