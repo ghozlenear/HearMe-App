@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,10 @@ import {
   Platform,
 } from 'react-native';
 import { Send, ArrowLeft, Phone, X, CreditCard } from 'lucide-react-native';
-import api from '../../constants/api';
 
 const { width } = Dimensions.get('window');
 
-// ChatMessage component (unchanged)
+// ChatMessage component
 const ChatMessage = ({ message, isUser }) => (
   <View style={[
     styles.messageContainer,
@@ -29,6 +28,54 @@ const ChatMessage = ({ message, isUser }) => (
     </Text>
   </View>
 );
+
+// Simple local "LLM" response generator
+const generateLocalResponse = (message, isDepressed) => {
+  const positiveResponses = [
+    "أنا سعيد لأنك تشعر بالتحسن! هل هناك أي شيء آخر تريد التحدث عنه؟",
+    "هذا رائع! كيف يمكنني مساعدتك اليوم؟",
+    "أنا هنا لمساعدتك. هل لديك أي أسئلة أخرى؟",
+    "يبدو أنك في حالة جيدة اليوم! هل تريد مشاركة المزيد؟"
+  ];
+
+  const supportiveResponses = [
+    "أنا هنا لمساعدتك. يبدو أنك تمر بيوم صعب. هل تريد التحدث أكثر عن ما تشعر به؟",
+    "شكرًا لمشاركة مشاعرك. أعلم أن هذا قد يكون صعبًا. هل هناك شيء معين يزعجك؟",
+    "أنا أسمعك. لا بأس أن تشعر بهذه الطريقة. هل تريد أن أخبرك ببعض تقنيات الاسترخاء؟",
+    "يبدو أنك قد تحتاج إلى دعم إضافي. هل تريد أن أوصي ببعض الموارد المفيدة؟"
+  ];
+
+  const generalResponses = [
+    "هذا مثير للاهتمام. هل يمكنك أن تخبرني المزيد عن ذلك؟",
+    "أفهم ما تقوله. كيف يؤثر هذا عليك؟",
+    "شكرًا لمشاركة ذلك معي. كيف تشعر حيال هذا الموقف؟",
+    "لدي بعض الأفكار التي قد تساعد. هل تريد أن أشاركها معك؟"
+  ];
+
+  const keywords = {
+    depressed: ["حزين", "اكتئاب", "تعيس", "بائس", "لا أستطيع", "لا أريد"],
+    happy: ["سعيد", "فرح", "مبسوط", "رائع", "جيد", "أفضل"]
+  };
+
+  const hasDepressionKeywords = keywords.depressed.some(word => 
+    message.includes(word)
+  );
+  
+  const hasHappyKeywords = keywords.happy.some(word => 
+    message.includes(word)
+  );
+
+  let responses;
+  if (isDepressed || hasDepressionKeywords) {
+    responses = supportiveResponses;
+  } else if (hasHappyKeywords) {
+    responses = positiveResponses;
+  } else {
+    responses = generalResponses;
+  }
+
+  return responses[Math.floor(Math.random() * responses.length)];
+};
 
 export default function ChatBot() {
   // Chat state
@@ -50,65 +97,7 @@ export default function ChatBot() {
   const paymentAnimation = useRef(new Animated.Value(0)).current;
   const messageAnimation = useRef(new Animated.Value(0)).current;
 
-  // Handle sending messages with depression detection
-  const handleSend = async () => {
-    if (!message.trim()) return;
-
-    // Animate message send
-    messageAnimation.setValue(50);
-    Animated.spring(messageAnimation, {
-      toValue: 0,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-
-    // Add user message immediately
-    const userMessage = { text: message, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    setMessage('');
-
-    try {
-      // 1. Get depression analysis
-      const predictionRes = await api.post('/predict', { text: message });
-      const { prediction, symptoms } = predictionRes.data;
-
-      // 2. Store conversation data
-      await api.post('/log_conversation', {
-        user_id: `user_${Date.now()}`,
-        message,
-        prediction,
-        symptoms
-      });
-
-      // 3. Add contextual response
-      setTimeout(() => {
-        messageAnimation.setValue(50);
-        Animated.spring(messageAnimation, {
-          toValue: 0,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }).start();
-
-        setMessages(prev => [...prev, {
-          text: prediction === "Depressed" ?
-            "يبدو أنك قد تحتاج إلى دعم نفسي. هل تريد التحدث مع معالج متخصص؟" :
-            "أنا سعيد لأنك بخير! هل لديك أي استفسارات أخرى؟",
-          isUser: false
-        }]);
-      }, 800);
-
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        text: "عذرًا، حدث خطأ تقني. يرجى المحاولة مرة أخرى",
-        isUser: false
-      }]);
-    }
-  };
-
-  // Payment handlers (unchanged)
+  // Payment handlers
   const handleCallTherapist = () => {
     setShowSubscription(true);
     Animated.timing(subscriptionAnimation, {
@@ -145,7 +134,6 @@ export default function ChatBot() {
     });
   };
 
-  // Helper functions (unchanged)
   const closeSubscriptionModal = () => {
     Animated.timing(subscriptionAnimation, {
       toValue: 0,
@@ -174,7 +162,7 @@ export default function ChatBot() {
       `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}` : cleaned;
   };
 
-  // Animation interpolations (unchanged)
+  // Animation interpolations
   const subscriptionTranslateY = subscriptionAnimation.interpolate({
     inputRange: [0, 1], outputRange: [300, 0]
   });
@@ -188,6 +176,55 @@ export default function ChatBot() {
     inputRange: [0, 1], outputRange: [0, 1]
   });
 
+  // Handle sending messages
+  const handleSend = async () => {
+    if (!message.trim()) return;
+
+    // Animate message send
+    messageAnimation.setValue(50);
+    Animated.spring(messageAnimation, {
+      toValue: 0,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+
+    // Add user message immediately
+    const userMessage = { text: message, isUser: true };
+    setMessages(prev => [...prev, userMessage]);
+    setMessage('');
+
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Generate local response (simulating BERT prediction)
+      const isDepressed = Math.random() > 0.7; // 30% chance of depressed response for demo
+      const botResponse = generateLocalResponse(message, isDepressed);
+      
+      // Add response to chat
+      messageAnimation.setValue(50);
+      Animated.spring(messageAnimation, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+      
+      setMessages(prev => [...prev, {
+        text: botResponse,
+        isUser: false
+      }]);
+      
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, {
+        text: "عذرًا، حدث خطأ تقني. يرجى المحاولة مرة أخرى",
+        isUser: false
+      }]);
+    }
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -200,8 +237,8 @@ export default function ChatBot() {
         </TouchableOpacity>
         <View style={styles.therapistInfo}>
           <Image 
-            source={require('../../assets/images/chat.png')}
             style={styles.therapistAvatar}
+             source={require('../../assets/images/chat.png')}
           />
           <View>
             <Text style={styles.therapistName}>معالجك</Text>
@@ -405,7 +442,7 @@ export default function ChatBot() {
   );
 }
 
-// Styles (unchanged)
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -426,8 +463,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   therapistAvatar: {
-    width: 40,
-    height: 40,
+    width: 50,
+    height: 50,
     borderRadius: 20,
     resizeMode: 'contain',
   },
