@@ -18,7 +18,7 @@ import api from '../../constants/api';
 
 const { width } = Dimensions.get('window');
 
-// ChatMessage component (unchanged)
+// ChatMessage component
 const ChatMessage = ({ message, isUser }) => (
   <View style={[
     styles.messageContainer,
@@ -31,12 +31,12 @@ const ChatMessage = ({ message, isUser }) => (
 );
 
 export default function ChatBot() {
+   const scrollViewRef = useRef();
   // Chat state
 const [messages, setMessages] = useState([
   { text: "مرحبًا، أنا مساعدك النفسي. كيف يمكنني مساعدتك اليوم؟", isUser: false }
 ]);
 const [inputText, setInputText] = useState('');
-// Add this new state variable
 const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   
   // Payment modals state
@@ -52,47 +52,57 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   const paymentAnimation = useRef(new Animated.Value(0)).current;
   const messageAnimation = useRef(new Animated.Value(0)).current;
 
-  
-
   // Message input
   const handleSend = async () => {
-    if (!inputText.trim()) return;
-  
-    const userMessage = { text: inputText, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-  
-    try {
-      const predictionRes = await api.post('/predict', { 
-        text: inputText,
-        user_id: conversationId
-      });
-      
-      const { prediction } = predictionRes.data;
-  
-      const llmRes = await api.post('/generate-arabic-response', {
-        user_id: conversationId,
-        message: inputText,
-        prediction: prediction
-      });
-  
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          text: llmRes.data.response,
-          isUser: false
-        }]);
-      }, 800);
-  
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        text: "عذرًا، حدث خطأ تقني. يرجى المحاولة مرة أخرى",
-        isUser: false
-      }]);
+  if (!inputText.trim()) return;
+
+  const userMessage = { text: inputText, isUser: true };
+  setMessages(prev => [...prev, userMessage]);
+  setInputText('');
+
+  try {
+    // Get prediction response
+    const predictionRes = await api.predictDepression(inputText, conversationId);
+    console.log("[DEBUG] Prediction Response:", predictionRes);
+
+    // Corrected: Access prediction directly
+    const prediction = predictionRes?.prediction;
+
+    if (!prediction) {
+      throw new Error("Prediction value missing from response");
     }
-  };
-  
-    // Payment handlers (unchanged)
+
+    // Generate Arabic response
+    /*
+    const llmRes = await api.generateArabicResponse(
+      conversationId, 
+      inputText, 
+      prediction
+    );
+    */
+
+    // Update messages
+    setTimeout(() => {
+      const botText = predictionRes.reply.generated;
+      const followUp = predictionRes.reply.structured.follow_up;
+      
+      setMessages(prev => [
+        ...prev,
+        { text: botText, isUser: false },
+        ...(followUp ? [{ text: followUp, isUser: false }] : [])
+      ]);
+    }, 800);
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    setMessages(prev => [...prev, {
+      text: "عذرًا، حدث خطأ تقني. يرجى المحاولة مرة أخرى",
+      isUser: false
+    }]);
+  }
+};
+
+    // Payment handlers 
   const handleCallTherapist = () => {
     setShowSubscription(true);
     Animated.timing(subscriptionAnimation, {
@@ -125,11 +135,11 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
       useNativeDriver: true,
     }).start(() => {
       setShowPayment(false);
-      // the actual payment processing here
+      // nzido the payment logic hna
     });
   };
 
-  // Helper functions (unchanged)
+  // Helper functions 
   const closeSubscriptionModal = () => {
     Animated.timing(subscriptionAnimation, {
       toValue: 0,
@@ -158,7 +168,7 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
       `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}` : cleaned;
   };
 
-  // Animation interpolations (unchanged)
+  // Animation 
   const subscriptionTranslateY = subscriptionAnimation.interpolate({
     inputRange: [0, 1], outputRange: [300, 0]
   });
@@ -175,7 +185,8 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -198,40 +209,51 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
       </View>
 
       {/* Messages */}
-      <ScrollView 
-  style={styles.messagesContainer}
-  contentContainerStyle={{ paddingBottom: 20 }}
-  >
-  {messages.map((msg, index) => (
-    <Animated.View 
-      key={index}
-      style={index === messages.length - 1 ? { 
-        transform: [{ translateY: messageAnimation }] 
-      } : null}
-    >
-      <ChatMessage message={msg.text} isUser={msg.isUser} />
-    </Animated.View>
-  ))}
-</ScrollView>
+     <ScrollView 
+        ref={scrollViewRef}
+        style={styles.messagesContainer}
+        contentContainerStyle={{ 
+          paddingBottom: 100, 
+          flexGrow: 1
+        }}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+      >
+        {messages.map((msg, index) => (
+          <Animated.View 
+            key={index}
+            style={index === messages.length - 1 ? { 
+              transform: [{ translateY: messageAnimation }] 
+            } : null}
+          >
+            <ChatMessage message={msg.text} isUser={msg.isUser} />
+          </Animated.View>
+        ))}
+      </ScrollView>
 
       {/* Input */}
-      <View style={styles.inputContainer}>
-      <TextInput
-  style={styles.input}
-  value={inputText}
-  onChangeText={setInputText}
-  placeholder="ابدأ المحادثة..."
-  placeholderTextColor="#9ca3af"
-  multiline
-/>
-<TouchableOpacity 
-  style={styles.sendButton} 
-  onPress={handleSend}
-  disabled={!inputText.trim()}
->
-  <Send size={24} color="#fff" />
-</TouchableOpacity>
-
+       <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={inputText}
+          onChangeText={setInputText}
+          placeholder="ابدأ المحادثة..."
+          placeholderTextColor="#9ca3af"
+          multiline
+          onFocus={() => {
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 300);
+          }}
+        />
+        <TouchableOpacity 
+          style={[styles.sendButton, !inputText.trim() && styles.disabledButton]} 
+          onPress={handleSend}
+          disabled={!inputText.trim()}
+        >
+          <Send size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Subscription Modal */}
@@ -390,7 +412,7 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   );
 }
 
-// Styles (unchanged)
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -430,10 +452,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   messageContainer: {
-    maxWidth: '80%',
-    marginVertical: 8,
-    padding: 12,
-    borderRadius: 16,
+   flex: 1,
+    padding: 16,
+     borderRadius: 16,
+    marginBottom: Platform.OS === 'ios' ? 0 : 20,
   },
   userMessages: {
     backgroundColor: '#A1C6EA',
@@ -458,9 +480,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     alignItems: 'flex-end',
+    backgroundColor: '#fff',
+    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
   },
   input: {
-    flex: 1,
+     flex: 1,
     backgroundColor: '#f8fafc',
     borderRadius: 20,
     padding: 12,
@@ -468,6 +492,8 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    fontSize: 16,
+    textAlign: 'right',
   },
   sendButton: {
     backgroundColor: '#A1C6EA',

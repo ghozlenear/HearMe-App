@@ -1,15 +1,15 @@
 import axios from "axios";
 
-//  Backend Configuration
+// Available Backends (local, ngrok, production)
 const BACKEND_ENDPOINTS = [
-  "http://localhost:5000",                     // Local development
-  "https://6d33-105-104-190-37.ngrok-free.app", // Ngrok tunnel
-  // "https://your-production-domain.com"      // Future production
+  "http://localhost:5000",                     
+  "https://9c9c-154-255-209-6.ngrok-free.app", // Replace with your own ngrok
+  // "https://your-production-domain.com"       // Future production
 ];
 
-// Backend Detection System
 let apiInstance = null;
 
+// Create Axios Instance
 const createApiInstance = async (baseURL) => {
   return axios.create({
     baseURL,
@@ -22,23 +22,24 @@ const createApiInstance = async (baseURL) => {
   });
 };
 
+// Try available backends and return a working one
 const detectWorkingBackend = async () => {
   for (const url of BACKEND_ENDPOINTS) {
     try {
       const testApi = await createApiInstance(url);
       const response = await testApi.get('/health', { timeout: 2000 });
       if (response.status === 200) {
-        console.log("Connected to backend:", url);
+        console.log(" Connected to backend:", url);
         return testApi;
       }
     } catch (error) {
-      console.warn(`Backend ${url} unavailable:`, error.message);
+      console.warn(` Backend ${url} unavailable:`, error.message);
     }
   }
   throw new Error("لا يمكن الاتصال بأي خادم - الرجاء التأكد من اتصال الإنترنت");
 };
 
-//Core API Methods
+// Initialize API once
 const initializeAPI = async () => {
   if (!apiInstance) {
     apiInstance = await detectWorkingBackend();
@@ -46,25 +47,29 @@ const initializeAPI = async () => {
   return apiInstance;
 };
 
-// Public API Functions
-export const predictDepression = async (text) => {
+//
+// 🔹 MAIN PUBLIC FUNCTIONS 🔹
+//
+
+// Predict depression from user message
+export const predictDepression = async (text, user_id = "anonymous") => {
   const api = await initializeAPI();
-  try {
-    const response = await api.post("/predict", { text });
-    return {
-      success: true,
-      data: response.data,
-      backend: api.defaults.baseURL
-    };
-  } catch (error) {
-    console.error("Prediction error:", error);
-    throw new Error(
-      error.response?.data?.error || 
-      "فشل في تحليل النص. يرجى المحاولة مرة أخرى"
-    );
-  }
+  const response = await api.post("/predict", { text, user_id });
+  return response.data;
 };
 
+// Generate a reply from GPT backend
+export const generateArabicResponse = async (user_id, message, prediction) => {
+  const api = await initializeAPI();
+  const response = await api.post("/generate-arabic-response", {
+    user_id,
+    message,
+    prediction
+  });
+  return response.data;
+};
+
+// Log a conversation (optional)
 export const logConversation = async (data) => {
   const api = await initializeAPI();
   try {
@@ -76,7 +81,7 @@ export const logConversation = async (data) => {
   }
 };
 
-// Health Monitoring
+// Health Checks
 export const checkBackendHealth = async () => {
   try {
     const api = await initializeAPI();
@@ -108,7 +113,7 @@ export const fullSystemCheck = async () => {
   }
 };
 
-// Backend Management
+// Manually switch to a different backend
 export const switchBackend = async (newUrl) => {
   try {
     const testApi = await createApiInstance(newUrl);
@@ -123,9 +128,10 @@ export const switchBackend = async (newUrl) => {
   }
 };
 
-// Export the API
+// Export everything
 export default {
   predictDepression,
+  generateArabicResponse,
   logConversation,
   checkBackendHealth,
   fullSystemCheck,

@@ -141,6 +141,9 @@ def generate_arabic_response(user_id, message, prediction):
         }
 
         response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 429:
+            print("Fad l'ápi kids")
+
         response.raise_for_status()
 
         reply = response.json()["choices"][0]["message"]["content"]
@@ -193,11 +196,7 @@ classifier = DepressionClassifier(MODEL_PATH)
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={
-    r"/predict": {"origins": "*"},
-    r"/log_conversation": {"origins": "*"},
-    r"/generate-arabic-response": {"origins": "*"}
-})
+CORS(app)
 
 # Initialize Limiter IMMEDIATELY after app creation
 limiter = Limiter(
@@ -453,4 +452,4 @@ def ratelimit_error(e):
     
 if __name__ == "__main__":
     ensure_data_directory()
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
