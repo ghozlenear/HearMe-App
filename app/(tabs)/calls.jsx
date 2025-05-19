@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   callButton: {
-    backgroundColor: '#60A5FA',
+    backgroundColor: '#A1C6EA',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
