@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Send, ArrowLeft, Phone, X, CreditCard } from 'lucide-react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 import api from '../../constants/api';
 
 const { width } = Dimensions.get('window');
@@ -183,10 +184,8 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
   });
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+  <View style={styles.container}>
+
 
       {/* Header */}
       <View style={styles.header}>
@@ -209,16 +208,17 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
       </View>
 
       {/* Messages */}
-     <ScrollView 
-        ref={scrollViewRef}
+     <KeyboardAwareScrollView
+        ef={scrollViewRef} 
         style={styles.messagesContainer}
-        contentContainerStyle={{ 
-          paddingBottom: 100, 
-          flexGrow: 1
-        }}
-        keyboardDismissMode="interactive"
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: 150 }]}
+        enableOnAndroid={true} 
+        extraScrollHeight={100}
+        keyboardOpeningTime={0}
+        enableResetScrollToCoords={false}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        keyboardDismissMode="interactive"
       >
         {messages.map((msg, index) => (
           <Animated.View 
@@ -230,7 +230,7 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
             <ChatMessage message={msg.text} isUser={msg.isUser} />
           </Animated.View>
         ))}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Input */}
        <View style={styles.inputContainer}>
@@ -408,7 +408,7 @@ const [conversationId, setConversationId] = useState(`user_${Date.now()}`);
           </Animated.View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -427,6 +427,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
+contentContainer: {
+  flexGrow: 1,
+},
   therapistInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,7 +484,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
     alignItems: 'flex-end',
     backgroundColor: '#fff',
-    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+    paddingBottom: Platform.OS === 'ios' ? 60 : 30,
   },
   input: {
      flex: 1,

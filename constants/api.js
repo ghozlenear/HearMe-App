@@ -1,9 +1,8 @@
 import axios from "axios";
 
-// Available Backends (local, ngrok, production)
 const BACKEND_ENDPOINTS = [
   "http://localhost:5000",                     
-  "https://9c9c-154-255-209-6.ngrok-free.app", // Replace with your own ngrok
+  "https://fbab-154-255-209-6.ngrok-free.app", 
   // "https://your-production-domain.com"       // Future production
 ];
 
@@ -36,7 +35,7 @@ const detectWorkingBackend = async () => {
       console.warn(` Backend ${url} unavailable:`, error.message);
     }
   }
-  throw new Error("لا يمكن الاتصال بأي خادم - الرجاء التأكد من اتصال الإنترنت");
+  throw new Error("لا يمكن الاتصال بأي خادم  الرجاء التأكد من اتصال الإنترنت");
 };
 
 // Initialize API once
