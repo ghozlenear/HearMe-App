@@ -2,7 +2,7 @@ import axios from "axios";
 
 const BACKEND_ENDPOINTS = [
   "http://localhost:5000",                     
-  "https://fbab-154-255-209-6.ngrok-free.app", 
+  "https://62a3-41-111-198-102.ngrok-free.app", 
   // "https://your-production-domain.com"       // Future production
 ];
 
