@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import 'react-native-get-random-values';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://mqelzoakbtjajdduwjou.supabase.co';

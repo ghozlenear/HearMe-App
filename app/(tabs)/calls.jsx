@@ -64,7 +64,7 @@ export default function Calls() {
       return;
     }
 
-    const location = await Location.n({});
+    const location = await Location.getCurrentPositionAsync({});
     const { latitude, longitude } = location.coords;
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
     const message = `Help me heree: ${mapsUrl}`;

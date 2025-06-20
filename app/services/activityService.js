@@ -1,3 +1,4 @@
+import 'react-native-get-random-values'; // 👈 Obligatoire ici aussi
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
